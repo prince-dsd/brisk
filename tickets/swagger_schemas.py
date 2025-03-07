@@ -36,45 +36,78 @@ cancel_ticket_schema = {
 }
 
 book_ticket_schema = {
-    "operation_description": "Books a ticket for a passenger.",
+    "operation_description": "Books tickets for multiple passengers.",
     "request_body": openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        required=["name", "age", "ticket_type"],
+        required=["passengers"],
         properties={
-            "name": openapi.Schema(type=openapi.TYPE_STRING, description="Name of the passenger"),
-            "age": openapi.Schema(type=openapi.TYPE_INTEGER, description="Age of the passenger"),
-            "ticket_type": openapi.Schema(
-                type=openapi.TYPE_STRING, description="Type of the ticket", enum=["confirmed", "RAC", "waiting-list"]
+            "passengers": openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    required=["name", "age"],
+                    properties={
+                        "name": openapi.Schema(type=openapi.TYPE_STRING),
+                        "age": openapi.Schema(type=openapi.TYPE_INTEGER),
+                        "gender": openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            enum=["M", "F"]
+                        ),
+                        "has_child": openapi.Schema(
+                            type=openapi.TYPE_BOOLEAN,
+                            default=False
+                        ),
+                    },
+                ),
             ),
         },
     ),
     "responses": {
         201: openapi.Response(
-            description="Ticket booked successfully",
+            description="Tickets booked successfully",
             schema=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
-                    "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                    "ticket_type": openapi.Schema(type=openapi.TYPE_STRING),
-                    "status": openapi.Schema(type=openapi.TYPE_STRING),
-                    "passenger": openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                            "name": openapi.Schema(type=openapi.TYPE_STRING),
-                            "age": openapi.Schema(type=openapi.TYPE_INTEGER),
-                            "is_child": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                        },
+                    "booked_tickets": openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                "passenger_name": openapi.Schema(type=openapi.TYPE_STRING),
+                                "age": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                "ticket_type": openapi.Schema(type=openapi.TYPE_STRING),
+                                "status": openapi.Schema(type=openapi.TYPE_STRING),
+                            }
+                        )
                     ),
-                    "berth_allocation": openapi.Schema(type=openapi.TYPE_STRING),
-                    "created_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+                    "errors": openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "passenger": openapi.Schema(type=openapi.TYPE_OBJECT),
+                                "error": openapi.Schema(type=openapi.TYPE_STRING),
+                            },
+                        ),
+                    ),
                 },
             ),
         ),
         400: openapi.Response(
-            description="Bad request",
+            description="Bad request or validation errors",
             schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT, properties={"error": openapi.Schema(type=openapi.TYPE_STRING)}
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "booked_tickets": openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(type=openapi.TYPE_OBJECT)
+                    ),
+                    "errors": openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(type=openapi.TYPE_OBJECT)
+                    ),
+                },
             ),
         ),
     },
@@ -82,14 +115,46 @@ book_ticket_schema = {
 
 get_booked_tickets_schema = {
     "operation_description": "Fetches a list of all booked tickets (i.e., confirmed and RAC tickets).",
-    "responses": {200: openapi.Response(description="List of booked tickets", schema=TicketSerializer(many=True))},
+    "responses": {
+        200: openapi.Response(
+            description="List of booked tickets",
+            schema=openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                        "passenger_name": openapi.Schema(type=openapi.TYPE_STRING),
+                        "age": openapi.Schema(type=openapi.TYPE_INTEGER),
+                        "ticket_type": openapi.Schema(type=openapi.TYPE_STRING),
+                        "status": openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
+            )
+        )
+    },
 }
 
 get_available_berths_schema = {
     "operation_description": (
         "Fetches available berths. This can be used to show which tickets are available for booking."
     ),
-    "responses": {200: openapi.Response(description="List of available berths", schema=BerthSerializer(many=True))},
+    "responses": {
+        200: openapi.Response(
+            description="List of available berths",
+            schema=openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                        "berth_type": openapi.Schema(type=openapi.TYPE_STRING),
+                        "status": openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
+            )
+        )
+    },
 }
 
 # Add more schemas for other views here

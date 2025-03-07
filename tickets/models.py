@@ -1,7 +1,10 @@
 from django.core.validators import MinValueValidator
 from django.db import models
 
-from .constants import AVAILABILITY_STATUS, BERTH_TYPES, HISTORY_ACTIONS, TICKET_STATUS, TICKET_TYPES
+from .constants import (
+    AVAILABILITY_STATUS, BERTH_TYPES, CHILD_AGE, GENDER_CHOICES,
+    HISTORY_ACTIONS, TICKET_STATUS, TICKET_TYPES
+)
 from .managers import TicketManager
 
 
@@ -13,7 +16,7 @@ class Passenger(models.Model):
     is_child = models.BooleanField(default=False, help_text="Indicates if passenger is under 5 years old")
     gender = models.CharField(
         max_length=1,
-        choices=[("M", "Male"), ("F", "Female")],
+        choices=GENDER_CHOICES,
         help_text="Gender of the passenger",
     )
 
@@ -27,7 +30,7 @@ class Passenger(models.Model):
 
     def save(self, *args, **kwargs):
         """Override save to automatically set is_child based on age."""
-        self.is_child = self.age < 5
+        self.is_child = self.age < CHILD_AGE
         super().save(*args, **kwargs)
 
 
@@ -35,16 +38,28 @@ class Ticket(models.Model):
     """Model representing a ticket in the booking system."""
 
     ticket_type = models.CharField(
-        max_length=20, choices=TICKET_TYPES, help_text="Type of ticket (Confirmed/RAC/Waiting List)"
+        max_length=20,
+        choices=TICKET_TYPES,
+        help_text="Type of ticket (Confirmed/RAC/Waiting List)"
     )
     status = models.CharField(
-        max_length=20, choices=TICKET_STATUS, default="booked", help_text="Current status of the ticket"
+        max_length=20,
+        choices=TICKET_STATUS,
+        default=TICKET_STATUS[0][0],  # 'booked'
+        help_text="Current status of the ticket"
     )
     passenger = models.ForeignKey(
-        Passenger, on_delete=models.CASCADE, related_name="tickets", help_text="Passenger this ticket belongs to"
+        Passenger,
+        on_delete=models.CASCADE,
+        related_name="tickets",
+        help_text="Passenger this ticket belongs to"
     )
     berth_allocation = models.CharField(
-        max_length=20, null=True, blank=True, help_text="Berth allocated to this ticket"
+        max_length=20,
+        choices=BERTH_TYPES,
+        null=True,
+        blank=True,
+        help_text="Berth allocated to this ticket"
     )
     created_at = models.DateTimeField(auto_now_add=True, help_text="Timestamp when ticket was created")
 
@@ -66,11 +81,15 @@ class Ticket(models.Model):
 class Berth(models.Model):
     """Model representing a berth in the train."""
 
-    berth_type = models.CharField(max_length=20, choices=BERTH_TYPES, help_text="Type of berth (Lower/Upper/Side)")
+    berth_type = models.CharField(
+        max_length=20,
+        choices=BERTH_TYPES,
+        help_text="Type of berth (Lower/Upper/Side)"
+    )
     availability_status = models.CharField(
         max_length=20,
         choices=AVAILABILITY_STATUS,
-        default="available",
+        default=AVAILABILITY_STATUS[0][0],  # 'available'
         help_text="Current availability status of the berth",
     )
 
@@ -90,9 +109,16 @@ class TicketHistory(models.Model):
     """Model for tracking ticket status changes."""
 
     ticket = models.ForeignKey(
-        Ticket, on_delete=models.CASCADE, related_name="history", help_text="Ticket whose history is being tracked"
+        Ticket,
+        on_delete=models.CASCADE,
+        related_name="history",
+        help_text="Ticket whose history is being tracked"
     )
-    action = models.CharField(max_length=50, choices=HISTORY_ACTIONS, help_text="Action performed on the ticket")
+    action = models.CharField(
+        max_length=50,
+        choices=HISTORY_ACTIONS,
+        help_text="Action performed on the ticket"
+    )
     timestamp = models.DateTimeField(auto_now_add=True, help_text="When the action was performed")
 
     class Meta:

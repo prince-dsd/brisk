@@ -13,11 +13,11 @@ WAITING_LIST_LIMIT = 10
 
 
 @transaction.atomic
-def book_ticket(passenger_name, passenger_age, ticket_type, gender=None, has_child=False):
+def book_ticket(passenger_name, passenger_age, gender=None, has_child=False):
     """
     Book a ticket with the given constraints and priorities
     """
-    if not passenger_name or not passenger_age or not ticket_type:
+    if not passenger_name or not passenger_age:
         return None, REQUIRED_FIELDS
 
     # Create passenger first
@@ -25,16 +25,15 @@ def book_ticket(passenger_name, passenger_age, ticket_type, gender=None, has_chi
     passenger = Passenger.objects.create(name=passenger_name, age=passenger_age, is_child=is_child, gender=gender)
 
     try:
-        # Check booking limits based on ticket type
-        if ticket_type == CONFIRMED:
-            if Ticket.objects.filter(ticket_type=CONFIRMED, status=BOOKED).count() >= CONFIRMED_BERTH_LIMIT:
-                return None, NO_CONFIRMED_BERTHS
-        elif ticket_type == RAC:
-            if Ticket.objects.filter(ticket_type=RAC, status=BOOKED).count() >= RAC_TICKET_LIMIT:
-                return None, NO_RAC_BERTHS
-        elif ticket_type == WAITING_LIST:
-            if Ticket.objects.filter(ticket_type=WAITING_LIST, status=BOOKED).count() >= WAITING_LIST_LIMIT:
-                return None, NO_TICKETS_AVAILABLE
+        # Check booking limits and determine ticket type
+        if Ticket.objects.filter(ticket_type=CONFIRMED, status=BOOKED).count() < CONFIRMED_BERTH_LIMIT:
+            ticket_type = CONFIRMED
+        elif Ticket.objects.filter(ticket_type=RAC, status=BOOKED).count() < RAC_TICKET_LIMIT:
+            ticket_type = RAC
+        elif Ticket.objects.filter(ticket_type=WAITING_LIST, status=BOOKED).count() < WAITING_LIST_LIMIT:
+            ticket_type = WAITING_LIST
+        else:
+            return None, NO_TICKETS_AVAILABLE
 
         # Handle berth allocation
         berth = None

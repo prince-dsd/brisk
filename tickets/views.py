@@ -14,27 +14,51 @@ from .swagger_schemas import (book_ticket_schema, cancel_ticket_schema, get_avai
 class BookTicketView(APIView):
     @swagger_auto_schema(**book_ticket_schema)
     def post(self, request):
-        passenger_name = request.data.get("name")
-        passenger_age = request.data.get("age")
-        ticket_type = request.data.get("ticket_type")
-        gender = request.data.get("gender")
-        has_child = request.data.get("has_child", False)
-
-        if not all([passenger_name, passenger_age, ticket_type]):
-            return handle_validation_error(["name", "age", "ticket_type"])
+        passengers = request.data.get("passengers", [])
+        if not passengers:
+            return handle_validation_error(["passengers"])
 
         try:
-            ticket, error = book_ticket(
-                passenger_name=passenger_name,
-                passenger_age=passenger_age,
-                ticket_type=ticket_type,
-                gender=gender,
-                has_child=has_child,
-            )
-            if error:
-                return handle_ticket_error(error)
+            booked_tickets = []
+            errors = []
 
-            return Response(TicketSerializer(ticket).data, status=status.HTTP_201_CREATED)
+            for passenger in passengers:
+                passenger_name = passenger.get("name")
+                passenger_age = passenger.get("age")
+                gender = passenger.get("gender")
+                has_child = passenger.get("has_child", False)
+
+                if not all([passenger_name, passenger_age]):
+                    errors.append({
+                        "passenger": passenger,
+                        "error": "Missing required fields: name, age"
+                    })
+                    continue
+
+                ticket, error = book_ticket(
+                    passenger_name=passenger_name,
+                    passenger_age=passenger_age,
+                    gender=gender,
+                    has_child=has_child,
+                )
+
+                if error:
+                    errors.append({
+                        "passenger": passenger,
+                        "error": error
+                    })
+                else:
+                    booked_tickets.append(ticket)
+
+            response_data = {
+                "booked_tickets": TicketSerializer(booked_tickets, many=True).data,
+                "errors": errors
+            }
+
+            # Return 201 if at least one ticket was booked, otherwise 400
+            status_code = status.HTTP_201_CREATED if booked_tickets else status.HTTP_400_BAD_REQUEST
+            return Response(response_data, status=status_code)
+
         except Exception as e:
             return handle_service_error(e)
 
