@@ -1,14 +1,16 @@
-from django.test import TestCase
 from django.core.exceptions import ValidationError
-from ..models import Ticket, Passenger, Berth
+from django.test import TestCase
+
+from ..models import Berth, Passenger, Ticket
 from ..services import book_ticket, cancel_ticket
+
 
 class TicketBookingTest(TestCase):
     def setUp(self):
         # Create berths
-        berth_types = ['lower'] * 54 + ['upper'] * 54 + ['side-lower'] * 9 + ['side-upper'] * 9
+        berth_types = ["lower"] * 54 + ["upper"] * 54 + ["side-lower"] * 9 + ["side-upper"] * 9
         for berth_type in berth_types:
-            Berth.objects.create(berth_type=berth_type, availability_status='available')
+            Berth.objects.create(berth_type=berth_type, availability_status="available")
 
     def test_confirmed_berth_limit(self):
         """Test that system cannot book more than 63 confirmed tickets"""

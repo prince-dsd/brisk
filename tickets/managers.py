@@ -1,6 +1,7 @@
-from django.db import models
-from django.core.exceptions import ValidationError
 from django.apps import apps
+from django.core.exceptions import ValidationError
+from django.db import models
+
 
 class TicketManager(models.Manager):
     CONFIRMED_BERTHS_LIMIT = 63
@@ -12,7 +13,7 @@ class TicketManager(models.Manager):
         Check if the number of confirmed berths is less than the limit.
         """
         try:
-            confirmed_count = self.filter(ticket_type='confirmed').count()
+            confirmed_count = self.filter(ticket_type="confirmed").count()
             if confirmed_count >= self.CONFIRMED_BERTHS_LIMIT:
                 raise ValidationError(f"Cannot book more than {self.CONFIRMED_BERTHS_LIMIT} confirmed berths.")
         except Exception as e:
@@ -23,7 +24,7 @@ class TicketManager(models.Manager):
         Check if the number of RAC tickets is less than the limit.
         """
         try:
-            rac_count = self.filter(ticket_type='RAC').count()
+            rac_count = self.filter(ticket_type="RAC").count()
             if rac_count >= self.RAC_LIMIT:
                 raise ValidationError(f"Cannot book more than {self.RAC_LIMIT} RAC tickets.")
         except Exception as e:
@@ -34,7 +35,7 @@ class TicketManager(models.Manager):
         Check if the number of waiting list tickets is less than the limit.
         """
         try:
-            waiting_list_count = self.filter(ticket_type='waiting-list').count()
+            waiting_list_count = self.filter(ticket_type="waiting-list").count()
             if waiting_list_count >= self.WAITING_LIST_LIMIT:
                 raise ValidationError(f"Cannot add more than {self.WAITING_LIST_LIMIT} waiting-list tickets.")
         except Exception as e:
@@ -46,13 +47,9 @@ class TicketManager(models.Manager):
         """
         try:
             if passenger.age >= 60 or (passenger.age < 5 and passenger.is_child):
-                return self._get_available_berth('lower')
+                return self._get_available_berth("lower")
 
-            return (
-                self._get_available_berth('side-lower') or
-                self._get_available_berth() or
-                None
-            )
+            return self._get_available_berth("side-lower") or self._get_available_berth() or None
         except Exception as e:
             raise ValidationError(f"Error assigning berth based on priority: {str(e)}")
 
@@ -61,10 +58,10 @@ class TicketManager(models.Manager):
         Helper method to get an available berth of a specific type or any type.
         """
         try:
-            Berth = apps.get_model('tickets', 'Berth')
-            query = {'availability_status': 'available'}
+            Berth = apps.get_model("tickets", "Berth")
+            query = {"availability_status": "available"}
             if berth_type:
-                query['berth_type'] = berth_type
+                query["berth_type"] = berth_type
 
             return Berth.objects.filter(**query).first()
         except Exception as e:
