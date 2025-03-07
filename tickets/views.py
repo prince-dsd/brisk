@@ -3,104 +3,63 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .error_handlers import handle_service_error, handle_ticket_error, handle_validation_error
-from .serializers import BerthSerializer, TicketSerializer
-from .services import (CONFIRMED_BERTH_LIMIT, RAC_TICKET_LIMIT, WAITING_LIST_LIMIT, book_ticket, cancel_ticket,
-                       get_available_berths, get_booked_tickets)
-from .swagger_schemas import (book_ticket_schema, cancel_ticket_schema, get_available_berths_schema,
-                              get_booked_tickets_schema)
+from .error_handlers import handle_service_error, handle_ticket_error
+from .serializers import TicketSerializer
+from .services import BookingService, AvailabilityService, cancel_ticket, get_booked_tickets
+from .swagger_schemas import (book_ticket_schema, cancel_ticket_schema,
+                            get_available_berths_schema, get_booked_tickets_schema)
 
 
-class BookTicketView(APIView):
+class BaseTicketView(APIView):
+    """Base view class with common functionality."""
+    
+    def create_response(self, data, status_code=status.HTTP_200_OK):
+        return Response(data, status=status_code)
+
+
+class BookTicketView(BaseTicketView):
     @swagger_auto_schema(**book_ticket_schema)
     def post(self, request):
-        passengers = request.data.get("passengers", [])
-        if not passengers:
-            return handle_validation_error(["passengers"])
-
+        """Book tickets for multiple passengers."""
         try:
-            booked_tickets = []
-            errors = []
-
-            for passenger in passengers:
-                passenger_name = passenger.get("name")
-                passenger_age = passenger.get("age")
-                gender = passenger.get("gender")
-                has_child = passenger.get("has_child", False)
-
-                if not all([passenger_name, passenger_age]):
-                    errors.append({
-                        "passenger": passenger,
-                        "error": "Missing required fields: name, age"
-                    })
-                    continue
-
-                ticket, error = book_ticket(
-                    passenger_name=passenger_name,
-                    passenger_age=passenger_age,
-                    gender=gender,
-                    has_child=has_child,
-                )
-
-                if error:
-                    errors.append({
-                        "passenger": passenger,
-                        "error": error
-                    })
-                else:
-                    booked_tickets.append(ticket)
-
-            response_data = {
-                "booked_tickets": TicketSerializer(booked_tickets, many=True).data,
-                "errors": errors
-            }
-
-            # Return 201 if at least one ticket was booked, otherwise 400
-            status_code = status.HTTP_201_CREATED if booked_tickets else status.HTTP_400_BAD_REQUEST
-            return Response(response_data, status=status_code)
-
+            booking_result = BookingService.process_booking_request(
+                request.data.get("passengers", [])
+            )
+            data, status_code = BookingService.format_booking_response(booking_result)
+            return self.create_response(data, status_code)
         except Exception as e:
             return handle_service_error(e)
 
 
-class CancelTicketView(APIView):
+class CancelTicketView(BaseTicketView):
     @swagger_auto_schema(**cancel_ticket_schema)
     def post(self, request, ticket_id):
+        """Cancel a specific ticket."""
         try:
             ticket, error = cancel_ticket(ticket_id)
             if error:
-                return handle_ticket_error(error)
-
-            return Response({"message": "Ticket canceled successfully."}, status=status.HTTP_200_OK)
+                return self.create_response({"error": error}, status.HTTP_400_BAD_REQUEST)
+            return self.create_response({"message": "Ticket canceled successfully."})
         except Exception as e:
             return handle_service_error(e)
 
 
-class GetBookedTicketsView(APIView):
+class GetBookedTicketsView(BaseTicketView):
     @swagger_auto_schema(**get_booked_tickets_schema)
     def get(self, request):
+        """Get all booked tickets."""
         try:
             tickets = get_booked_tickets()
-            return Response(TicketSerializer(tickets, many=True).data, status=status.HTTP_200_OK)
+            return self.create_response(TicketSerializer(tickets, many=True).data)
         except Exception as e:
             return handle_service_error(e)
 
 
-class GetAvailableTicketsView(APIView):
+class GetAvailableTicketsView(BaseTicketView):
     @swagger_auto_schema(**get_available_berths_schema)
     def get(self, request):
+        """Get available tickets and quota information."""
         try:
-            available_berths = get_available_berths()
-            return Response(
-                {
-                    "available_berths": BerthSerializer(available_berths, many=True).data,
-                    "quotas": {
-                        "confirmed_limit": CONFIRMED_BERTH_LIMIT,
-                        "rac_limit": RAC_TICKET_LIMIT,
-                        "waiting_list_limit": WAITING_LIST_LIMIT,
-                    },
-                },
-                status=status.HTTP_200_OK,
-            )
+            return self.create_response(AvailabilityService.get_availability_info())
         except Exception as e:
             return handle_service_error(e)

@@ -137,24 +137,38 @@ get_booked_tickets_schema = {
 
 get_available_berths_schema = {
     "operation_description": (
-        "Fetches available berths. This can be used to show which tickets are available for booking."
+        "Fetches available berths and count information."
     ),
     "responses": {
         200: openapi.Response(
-            description="List of available berths",
+            description="Available berths information",
             schema=openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                        "berth_type": openapi.Schema(type=openapi.TYPE_STRING),
-                        "status": openapi.Schema(type=openapi.TYPE_STRING),
-                    }
-                )
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "available_berths": openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                "berth_type": openapi.Schema(type=openapi.TYPE_STRING),
+                                "status": openapi.Schema(type=openapi.TYPE_STRING),
+                            }
+                        )
+                    ),
+                    "available_berths_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                    "quotas": openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "confirmed_limit": openapi.Schema(type=openapi.TYPE_INTEGER),
+                            "rac_limit": openapi.Schema(type=openapi.TYPE_INTEGER),
+                            "waiting_list_limit": openapi.Schema(type=openapi.TYPE_INTEGER),
+                        }
+                    )
+                }
             )
         )
-    },
+    }
 }
 
 # Add more schemas for other views here
