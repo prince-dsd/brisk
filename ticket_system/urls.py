@@ -27,7 +27,7 @@ schema_view = get_schema_view(
         default_version="v1",
         description="This is the API documentation for the Railway Ticket Reservation System",
         terms_of_service="https://www.google.com/policies/terms/",
-        contact=openapi.Contact(email="contact@railway.com"),
+        contact=openapi.Contact(email="neo11prince@gmail.com"),
         license=openapi.License(name="MIT License"),
     ),
     public=True,
