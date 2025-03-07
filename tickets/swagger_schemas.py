@@ -1,4 +1,5 @@
 from drf_yasg import openapi
+from .serializers import TicketSerializer, BerthSerializer
 
 cancel_ticket_schema = {
     'operation_description': "Cancels the ticket and handles the promotion logic.",
@@ -84,6 +85,26 @@ book_ticket_schema = {
                     'error': openapi.Schema(type=openapi.TYPE_STRING)
                 }
             )
+        )
+    }
+}
+
+get_booked_tickets_schema = {
+    'operation_description': "Fetches a list of all booked tickets (i.e., confirmed and RAC tickets).",
+    'responses': {
+        200: openapi.Response(
+            description="List of booked tickets",
+            schema=TicketSerializer(many=True)
+        )
+    }
+}
+
+get_available_berths_schema = {
+    'operation_description': "Fetches available berths. This can be used to show which tickets are available for booking.",
+    'responses': {
+        200: openapi.Response(
+            description="List of available berths",
+            schema=BerthSerializer(many=True)
         )
     }
 }
