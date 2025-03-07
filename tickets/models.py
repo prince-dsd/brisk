@@ -23,7 +23,7 @@ class Passenger(models.Model):
     gender = models.CharField(
         max_length=1,
         choices=[('M', 'Male'), ('F', 'Female')],
-        help_text="Gender of the passenger"
+        help_text="Gender of the passenger",
     )
 
     class Meta:
