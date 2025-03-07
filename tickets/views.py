@@ -3,6 +3,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Ticket, Passenger, Berth, TicketHistory
 from .serializers import TicketSerializer, PassengerSerializer, BerthSerializer, TicketHistorySerializer
+from drf_yasg.utils import swagger_auto_schema
+from .swagger_schemas import cancel_ticket_schema
+from .services import cancel_ticket
 
 
 # Book Ticket
@@ -40,40 +43,15 @@ class BookTicketView(APIView):
 
 # Cancel Ticket
 class CancelTicketView(APIView):
+    @swagger_auto_schema(**cancel_ticket_schema)
     def post(self, request, ticket_id):
         """
         Cancels the ticket and handles the promotion logic.
         When a confirmed ticket is canceled, the next RAC ticket (if any) should become confirmed.
         """
-        try:
-            ticket = Ticket.objects.get(id=ticket_id)
-        except Ticket.DoesNotExist:
-            return Response({"error": "Ticket not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        if ticket.status == 'canceled':
-            return Response({"message": "This ticket is already canceled."}, status=status.HTTP_400_BAD_REQUEST)
-
-        ticket.status = 'canceled'
-        ticket.save()
-
-        # Handle promotions (RAC → Confirmed, Waiting-list → RAC)
-        if ticket.ticket_type == 'confirmed':
-            # Find the next RAC ticket to promote to confirmed
-            next_rac_ticket = Ticket.objects.filter(ticket_type='RAC', status='booked').first()
-            if next_rac_ticket:
-                next_rac_ticket.ticket_type = 'confirmed'
-                next_rac_ticket.save()
-                TicketHistory.objects.create(ticket=next_rac_ticket, action='promoted_from_RAC')
-
-        # Handle waiting-list promotion
-        waiting_list_ticket = Ticket.objects.filter(ticket_type='waiting-list', status='booked').first()
-        if waiting_list_ticket:
-            waiting_list_ticket.ticket_type = 'RAC'
-            waiting_list_ticket.save()
-            TicketHistory.objects.create(ticket=waiting_list_ticket, action='moved_to_RAC')
-
-        # Create cancellation history
-        TicketHistory.objects.create(ticket=ticket, action='canceled')
+        ticket, error = cancel_ticket(ticket_id)
+        if error:
+            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST if error == "This ticket is already canceled." else status.HTTP_404_NOT_FOUND)
 
         return Response({"message": "Ticket canceled successfully."}, status=status.HTTP_200_OK)
 

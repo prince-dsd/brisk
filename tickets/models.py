@@ -27,7 +27,6 @@ class Ticket(models.Model):
     berth_allocation = models.CharField(max_length=20, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # Attach the custom manager
     objects = TicketManager()
 
     def __str__(self):
