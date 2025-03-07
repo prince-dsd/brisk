@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.utils import OperationalError
 
 from .constants import (ACTION_CANCELED, ACTION_MOVED_RAC, ACTION_PROMOTED_RAC, ALREADY_CANCELED, AVAILABLE, BOOKED,
                         CANCELED, CHILD_AGE, CONFIRMED, GENDER_FEMALE, LOWER, NO_BERTH_AVAILABLE, NO_CONFIRMED_BERTHS,
@@ -15,80 +16,96 @@ WAITING_LIST_LIMIT = 10
 @transaction.atomic
 def book_ticket(passenger_name, passenger_age, gender=None, has_child=False):
     """
-    Book a ticket with the given constraints and priorities
+    Book a ticket with concurrency handling
     """
     if not passenger_name or not passenger_age:
         return None, REQUIRED_FIELDS
 
-    # Create passenger first
-    is_child = passenger_age < CHILD_AGE
-    passenger = Passenger.objects.create(name=passenger_name, age=passenger_age, is_child=is_child, gender=gender)
-
     try:
-        # Check booking limits and determine ticket type
-        if Ticket.objects.filter(ticket_type=CONFIRMED, status=BOOKED).count() < CONFIRMED_BERTH_LIMIT:
-            ticket_type = CONFIRMED
-        elif Ticket.objects.filter(ticket_type=RAC, status=BOOKED).count() < RAC_TICKET_LIMIT:
-            ticket_type = RAC
-        elif Ticket.objects.filter(ticket_type=WAITING_LIST, status=BOOKED).count() < WAITING_LIST_LIMIT:
-            ticket_type = WAITING_LIST
-        else:
-            return None, NO_TICKETS_AVAILABLE
+        # Create passenger first
+        is_child = passenger_age < CHILD_AGE
+        passenger = Passenger.objects.create(name=passenger_name, age=passenger_age, is_child=is_child, gender=gender)
 
-        # Handle berth allocation
-        berth = None
-        if not is_child:  # Children under 5 don't get berth
-            if ticket_type == CONFIRMED:
-                berth = _allocate_confirmed_berth(passenger_age, gender, has_child)
-            elif ticket_type == RAC:
-                berth = _allocate_rac_berth()
+        # Lock the ticket counts for atomic operations
+        with transaction.atomic():
+            # Get current counts with locks
+            confirmed_count = Ticket.objects.select_for_update(nowait=True).filter(
+                ticket_type=CONFIRMED, status=BOOKED
+            ).count()
+            rac_count = Ticket.objects.select_for_update(nowait=True).filter(
+                ticket_type=RAC, status=BOOKED
+            ).count()
+            waiting_count = Ticket.objects.select_for_update(nowait=True).filter(
+                ticket_type=WAITING_LIST, status=BOOKED
+            ).count()
 
-        if not berth and ticket_type != WAITING_LIST:
-            return None, NO_BERTH_AVAILABLE
+            # Determine ticket type
+            if confirmed_count < CONFIRMED_BERTH_LIMIT:
+                ticket_type = CONFIRMED
+            elif rac_count < RAC_TICKET_LIMIT:
+                ticket_type = RAC
+            elif waiting_count < WAITING_LIST_LIMIT:
+                ticket_type = WAITING_LIST
+            else:
+                return None, NO_TICKETS_AVAILABLE
 
-        # Create ticket
-        ticket = Ticket.objects.create(
-            ticket_type=ticket_type,
-            status=BOOKED,
-            passenger=passenger,
-            berth_allocation=berth.berth_type if berth else None,
-        )
+            # Handle berth allocation with locking
+            berth = None
+            if not is_child:
+                if ticket_type == CONFIRMED:
+                    berth = _allocate_confirmed_berth_with_lock(passenger_age, gender, has_child)
+                elif ticket_type == RAC:
+                    berth = _allocate_rac_berth_with_lock()
 
-        # Update berth status if allocated
-        if berth:
-            berth.availability_status = BOOKED
-            berth.save()
+            if not berth and ticket_type != WAITING_LIST:
+                return None, NO_BERTH_AVAILABLE
 
-        return ticket, None
+            # Create ticket
+            ticket = Ticket.objects.create(
+                ticket_type=ticket_type,
+                status=BOOKED,
+                passenger=passenger,
+                berth_allocation=berth.berth_type if berth else None,
+            )
 
+            # Update berth status if allocated
+            if berth:
+                berth.availability_status = BOOKED
+                berth.save()
+
+            return ticket, None
+
+    except OperationalError:
+        # Handle deadlock or lock wait timeout
+        return None, "Booking temporarily unavailable. Please try again."
     except ValidationError as e:
         return None, str(e)
 
 
-def _allocate_confirmed_berth(age, gender, has_child):
+def _allocate_confirmed_berth_with_lock(age, gender, has_child):
     """
-    Allocate berth based on priority:
-    1. Seniors (60+) get lower berth
-    2. Ladies with children get lower berth
-    3. Others get any available berth
+    Allocate berth with proper locking
     """
-    available_berths = Berth.objects.filter(availability_status=AVAILABLE)
+    available_berths = Berth.objects.select_for_update(nowait=True).filter(
+        availability_status=AVAILABLE
+    )
 
-    # Priority allocation for lower berths
     if age >= SENIOR_AGE or (gender == GENDER_FEMALE and has_child):
         lower_berth = available_berths.filter(berth_type=LOWER).first()
         if lower_berth:
             return lower_berth
 
-    # Regular allocation for others
     return available_berths.exclude(berth_type=SIDE_LOWER).first()
 
 
-def _allocate_rac_berth():
+def _allocate_rac_berth_with_lock():
     """
-    Allocate side-lower berth for RAC passengers
+    Allocate RAC berth with proper locking
     """
-    return Berth.objects.filter(berth_type=SIDE_LOWER, availability_status=AVAILABLE).first()
+    return Berth.objects.select_for_update(nowait=True).filter(
+        berth_type=SIDE_LOWER, 
+        availability_status=AVAILABLE
+    ).first()
 
 
 def cancel_ticket(ticket_id):
