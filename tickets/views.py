@@ -4,12 +4,13 @@ from rest_framework import status
 from .models import Ticket, Passenger, Berth, TicketHistory
 from .serializers import TicketSerializer, PassengerSerializer, BerthSerializer, TicketHistorySerializer
 from drf_yasg.utils import swagger_auto_schema
-from .swagger_schemas import cancel_ticket_schema
+from .swagger_schemas import cancel_ticket_schema, book_ticket_schema
 from .services import cancel_ticket
 
 
 # Book Ticket
 class BookTicketView(APIView):
+    @swagger_auto_schema(**book_ticket_schema)
     def post(self, request):
         passenger_name = request.data.get('name')
         passenger_age = request.data.get('age')
