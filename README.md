@@ -7,24 +7,83 @@ A Django-based railway ticket reservation system that handles berth allocation, 
 The system is designed to manage railway ticket reservations, including berth allocation, RAC (Reservation Against Cancellation), and waiting list management. It ensures that passengers are allocated berths based on priority rules and availability.
 
 ## System Architecture
+The Railway Ticket Reservation System follows a typical Django-based architecture with a PostgreSQL database. Below is an overview of the system architecture:
 
-+---------------------------+
-|        Web Client         |
-|  (Postman, Browser, etc.) |
-+------------+--------------+
-             |
-             | REST API (Django REST Framework)
-             |
-+------------v--------------+
-|     Django Backend        |
-| (REST API with DRF)       |
-+------------+--------------+
-             |
-+------------v--------------+
-|   PostgreSQL Database     |
-| (Tickets, Passengers,     |
-|  Berths, Waiting List)    |
-+---------------------------+
+### Components
+
+1. **Django Application**:
+  - **Models**: Define the database schema for passengers, tickets, berths, and ticket history.
+  - **Views**: Handle HTTP requests and responses for booking, canceling, and retrieving tickets.
+  - **Serializers**: Convert complex data types like querysets and model instances to native Python datatypes.
+  - **URLs**: Route URLs to the appropriate views.
+  - **Services**: Contain business logic for booking and canceling tickets.
+  - **Error Handlers**: Manage custom error responses for various scenarios.
+
+2. **PostgreSQL Database**:
+  - Stores data for passengers, tickets, berths, and ticket history.
+  - Utilizes Django's ORM for database interactions.
+
+3. **Docker**:
+  - **Dockerfile**: Defines the environment for the Django application.
+  - **docker-compose.yml**: Manages multi-container Docker applications, including the Django app and PostgreSQL database.
+
+4. **API Documentation**:
+  - **Swagger UI**: Provides interactive API documentation.
+  - **Redoc UI**: Alternative API documentation interface.
+
+### Data Flow
+
+1. **Booking a Ticket**:
+  - The user sends a POST request to the `/tickets/book/` endpoint with passenger details.
+  - The request is processed by the `BookTicketView`, which calls the `BookingService`.
+  - The `BookingService` validates the request, determines ticket type and berth allocation, and creates the ticket.
+  - The response includes the booking details and allocated berths.
+
+2. **Canceling a Ticket**:
+  - The user sends a POST request to the `/tickets/cancel/{ticket_id}/` endpoint.
+  - The request is processed by the `CancelTicketView`, which calls the `cancel_ticket` service.
+  - The service updates the ticket status to canceled and handles any necessary promotions for RAC and waiting list tickets.
+  - The response confirms the cancellation.
+
+3. **Retrieving Booked Tickets**:
+  - The user sends a GET request to the `/tickets/booked/` endpoint.
+  - The request is processed by the `GetBookedTicketsView`, which retrieves all booked tickets from the database.
+  - The response includes a list of booked tickets with passenger and berth details.
+
+4. **Retrieving Available Tickets**:
+  - The user sends a GET request to the `/tickets/available/` endpoint.
+  - The request is processed by the `GetAvailableTicketsView`, which retrieves available berths and quota information.
+  - The response includes the count and details of available berths.
+
+### Diagram
+
+```plaintext
++---------------------+       +---------------------+
+|  User               |       |  Admin              |
++---------+-----------+       +---------+-----------+
+       |                             |
+       |                             |
+       v                             v
++---------+-----------+       +---------+-----------+
+|  Django Views       |       |  Django Admin       |
+|  (Book, Cancel,     |       |  Interface          |
+|  Retrieve Tickets)  |       +---------+-----------+
++---------+-----------+                 |
+       |                             |
+       v                             v
++---------+-----------+       +---------+-----------+
+|  Django Services    |       |  Django Models      |
+|  (Booking,          |       |  (Passenger, Ticket,|
+|  Availability)      |       |  Berth, History)    |
++---------+-----------+       +---------+-----------+
+       |                             |
+       v                             v
++---------+-----------+       +---------+-----------+
+|  PostgreSQL Database|       |  API Documentation  |
+|  (Data Storage)     |       |  (Swagger, Redoc)   |
++---------------------+       +---------------------+
+```
+
 
 ## Database Models
 
