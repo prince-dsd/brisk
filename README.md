@@ -135,8 +135,8 @@ Ensure you have the following installed:
 
 1. **Clone the Repository:**
   ```sh
-  git clone <repository-url>
-  cd <repository-directory>
+  git clone git@github.com:prince-dsd/brisk.git
+  cd brisk
   ```
 
 2. **Create a `.env` File:**
