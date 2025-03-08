@@ -13,11 +13,11 @@ psycopg2 = "^2.9"
 environ = "^1.0"
 django-environ = "^0.12.0"
 drf-yasg = "^1.21.9"
-faker = "^37.0.0"
+gunicorn = "^20.1"
+
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
-gunicorn = "^20.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"

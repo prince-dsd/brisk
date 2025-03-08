@@ -4,12 +4,16 @@ FROM python:3.12
 # Set the working directory inside the container
 WORKDIR /app
 
+# Set environment variables for Poetry
+ENV POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1
+
 # Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
+RUN pip install --no-cache-dir poetry
 
 # Install dependencies from pyproject.toml
 COPY pyproject.toml poetry.lock /app/
-RUN poetry install --no-dev --no-interaction
+RUN poetry install --no-interaction --without dev --no-root
 
 # Copy the rest of the application code
 COPY . /app/
@@ -18,4 +22,4 @@ COPY . /app/
 EXPOSE 8000
 
 # Run the Django app using Gunicorn
-CMD ["gunicorn", "railway_project.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "ticket_system.wsgi:application", "--bind", "0.0.0.0:8000"]

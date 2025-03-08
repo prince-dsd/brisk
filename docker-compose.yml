@@ -3,7 +3,7 @@ version: '3'
 services:
   app:
     build: .
-    command: ["gunicorn", "railway_project.wsgi:application", "--bind", "0.0.0.0:8000"]
+    command: ["gunicorn", "ticket_system.wsgi:application", "--bind", "0.0.0.0:8000"]
     volumes:
       - .:/app
     ports:
