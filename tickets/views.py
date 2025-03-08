@@ -5,14 +5,23 @@ from rest_framework.views import APIView
 
 from .error_handlers import handle_service_error, handle_ticket_error
 from .serializers import TicketSerializer
-from .services import BookingService, AvailabilityService, cancel_ticket, get_booked_tickets
-from .swagger_schemas import (book_ticket_schema, cancel_ticket_schema,
-                            get_available_berths_schema, get_booked_tickets_schema)
+from .services import (
+    AvailabilityService,
+    BookingService,
+    cancel_ticket,
+    get_booked_tickets,
+)
+from .swagger_schemas import (
+    book_ticket_schema,
+    cancel_ticket_schema,
+    get_available_berths_schema,
+    get_booked_tickets_schema,
+)
 
 
 class BaseTicketView(APIView):
     """Base view class with common functionality."""
-    
+
     def create_response(self, data, status_code=status.HTTP_200_OK):
         return Response(data, status=status_code)
 
@@ -22,9 +31,7 @@ class BookTicketView(BaseTicketView):
     def post(self, request):
         """Book tickets for multiple passengers."""
         try:
-            booking_result = BookingService.process_booking_request(
-                request.data.get("passengers", [])
-            )
+            booking_result = BookingService.process_booking_request(request.data.get("passengers", []))
             data, status_code = BookingService.format_booking_response(booking_result)
             return self.create_response(data, status_code)
         except Exception as e:

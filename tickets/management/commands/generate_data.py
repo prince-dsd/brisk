@@ -1,12 +1,17 @@
-from datetime import datetime
-
 import random
+from datetime import datetime
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from faker import Faker
 
-from tickets.constants import AVAILABILITY_STATUS, BERTH_TYPES, HISTORY_ACTIONS, TICKET_STATUS, TICKET_TYPES
+from tickets.constants import (
+    AVAILABILITY_STATUS,
+    BERTH_TYPES,
+    HISTORY_ACTIONS,
+    TICKET_STATUS,
+    TICKET_TYPES,
+)
 from tickets.models import Berth, Passenger, Ticket, TicketHistory
 
 

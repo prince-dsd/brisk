@@ -49,14 +49,8 @@ book_ticket_schema = {
                     properties={
                         "name": openapi.Schema(type=openapi.TYPE_STRING),
                         "age": openapi.Schema(type=openapi.TYPE_INTEGER),
-                        "gender": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            enum=["M", "F"]
-                        ),
-                        "has_child": openapi.Schema(
-                            type=openapi.TYPE_BOOLEAN,
-                            default=False
-                        ),
+                        "gender": openapi.Schema(type=openapi.TYPE_STRING, enum=["M", "F"]),
+                        "has_child": openapi.Schema(type=openapi.TYPE_BOOLEAN, default=False),
                     },
                 ),
             ),
@@ -78,8 +72,8 @@ book_ticket_schema = {
                                 "age": openapi.Schema(type=openapi.TYPE_INTEGER),
                                 "ticket_type": openapi.Schema(type=openapi.TYPE_STRING),
                                 "status": openapi.Schema(type=openapi.TYPE_STRING),
-                            }
-                        )
+                            },
+                        ),
                     ),
                     "errors": openapi.Schema(
                         type=openapi.TYPE_ARRAY,
@@ -100,13 +94,9 @@ book_ticket_schema = {
                 type=openapi.TYPE_OBJECT,
                 properties={
                     "booked_tickets": openapi.Schema(
-                        type=openapi.TYPE_ARRAY,
-                        items=openapi.Schema(type=openapi.TYPE_OBJECT)
+                        type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_OBJECT)
                     ),
-                    "errors": openapi.Schema(
-                        type=openapi.TYPE_ARRAY,
-                        items=openapi.Schema(type=openapi.TYPE_OBJECT)
-                    ),
+                    "errors": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_OBJECT)),
                 },
             ),
         ),
@@ -128,17 +118,15 @@ get_booked_tickets_schema = {
                         "age": openapi.Schema(type=openapi.TYPE_INTEGER),
                         "ticket_type": openapi.Schema(type=openapi.TYPE_STRING),
                         "status": openapi.Schema(type=openapi.TYPE_STRING),
-                    }
-                )
-            )
+                    },
+                ),
+            ),
         )
     },
 }
 
 get_available_berths_schema = {
-    "operation_description": (
-        "Fetches available berths and count information."
-    ),
+    "operation_description": "Fetches available berths and count information.",
     "responses": {
         200: openapi.Response(
             description="Available berths information",
@@ -153,8 +141,8 @@ get_available_berths_schema = {
                                 "id": openapi.Schema(type=openapi.TYPE_INTEGER),
                                 "berth_type": openapi.Schema(type=openapi.TYPE_STRING),
                                 "status": openapi.Schema(type=openapi.TYPE_STRING),
-                            }
-                        )
+                            },
+                        ),
                     ),
                     "available_berths_count": openapi.Schema(type=openapi.TYPE_INTEGER),
                     "quotas": openapi.Schema(
@@ -163,12 +151,10 @@ get_available_berths_schema = {
                             "confirmed_limit": openapi.Schema(type=openapi.TYPE_INTEGER),
                             "rac_limit": openapi.Schema(type=openapi.TYPE_INTEGER),
                             "waiting_list_limit": openapi.Schema(type=openapi.TYPE_INTEGER),
-                        }
-                    )
-                }
-            )
+                        },
+                    ),
+                },
+            ),
         )
-    }
+    },
 }
-
-# Add more schemas for other views here

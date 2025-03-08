@@ -16,23 +16,14 @@ UPPER = "upper"
 SIDE_LOWER = "side-lower"
 SIDE_UPPER = "side-upper"
 
-BERTH_TYPES = [
-    (LOWER, "Lower"),
-    (SIDE_LOWER, "Side-Lower"),
-    (UPPER, "Upper"),
-    (SIDE_UPPER, "Side-Upper")
-]
+BERTH_TYPES = [(LOWER, "Lower"), (SIDE_LOWER, "Side-Lower"), (UPPER, "Upper"), (SIDE_UPPER, "Side-Upper")]
 
 # Availability Status
 AVAILABLE = "available"
 BOOKED = "booked"
 RESERVED = "reserved"
 
-AVAILABILITY_STATUS = [
-    (AVAILABLE, "Available"),
-    (BOOKED, "Booked"),
-    (RESERVED, "Reserved")
-]
+AVAILABILITY_STATUS = [(AVAILABLE, "Available"), (BOOKED, "Booked"), (RESERVED, "Reserved")]
 
 # Error Messages
 TICKET_NOT_FOUND = "Ticket not found."
@@ -71,5 +62,5 @@ CHILD_AGE = 5
 
 # Ticket Limits
 CONFIRMED_BERTH_LIMIT = 63  # Regular berths (18 + 18 + 18 + 9)
-RAC_TICKET_LIMIT = 9      # Side lower berths
-WAITING_LIST_LIMIT = 10    # Waiting list capacity
+RAC_TICKET_LIMIT = 9  # Side lower berths
+WAITING_LIST_LIMIT = 10  # Waiting list capacity

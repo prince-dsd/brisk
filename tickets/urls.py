@@ -1,6 +1,11 @@
 from django.urls import path
 
-from .views import BookTicketView, CancelTicketView, GetAvailableTicketsView, GetBookedTicketsView
+from .views import (
+    BookTicketView,
+    CancelTicketView,
+    GetAvailableTicketsView,
+    GetBookedTicketsView,
+)
 
 urlpatterns = [
     # Endpoint to book a ticket

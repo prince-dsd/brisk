@@ -2,13 +2,13 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.utils import OperationalError
 from rest_framework import status
-from .serializers import TicketSerializer, BerthSerializer
 
 from .constants import (ACTION_CANCELED, ACTION_MOVED_RAC, ACTION_PROMOTED_RAC, ALREADY_CANCELED, AVAILABLE, BOOKED,
                         CANCELED, CHILD_AGE, CONFIRMED, GENDER_FEMALE, LOWER, NO_BERTH_AVAILABLE, NO_CONFIRMED_BERTHS,
                         NO_RAC_BERTHS, NO_TICKETS_AVAILABLE, RAC, REQUIRED_FIELDS, SENIOR_AGE, SIDE_LOWER,
                         TICKET_NOT_FOUND, WAITING_LIST)
 from .models import Berth, Passenger, Ticket, TicketHistory
+from .serializers import BerthSerializer, TicketSerializer
 
 CONFIRMED_BERTH_LIMIT = 63
 RAC_TICKET_LIMIT = 18
@@ -24,10 +24,10 @@ def book_ticket(passenger_name, passenger_age, gender=None, has_child=False):
     try:
         passenger = _create_passenger(passenger_name, passenger_age, gender)
         ticket_details = _determine_ticket_type_and_berth(passenger, has_child)
-        
+
         if "error" in ticket_details:
             return None, ticket_details["error"]
-            
+
         ticket = _create_ticket(passenger, ticket_details)
         return ticket, None
 
@@ -36,25 +36,23 @@ def book_ticket(passenger_name, passenger_age, gender=None, has_child=False):
     except ValidationError as e:
         return None, str(e)
 
+
 def _validate_booking_params(name, age):
     """Validate basic booking parameters."""
     return bool(name and age is not None)
 
+
 def _create_passenger(name, age, gender):
     """Create a new passenger record."""
     is_child = age < CHILD_AGE
-    return Passenger.objects.create(
-        name=name,
-        age=age,
-        is_child=is_child,
-        gender=gender
-    )
+    return Passenger.objects.create(name=name, age=age, is_child=is_child, gender=gender)
+
 
 @transaction.atomic
 def _determine_ticket_type_and_berth(passenger, has_child):
     """Determine ticket type and berth allocation based on availability."""
     ticket_counts = _get_current_ticket_counts()
-    
+
     # Determine ticket type
     ticket_type = _get_available_ticket_type(ticket_counts)
     if not ticket_type:
@@ -67,21 +65,19 @@ def _determine_ticket_type_and_berth(passenger, has_child):
         if not berth and ticket_type != WAITING_LIST:
             return {"error": NO_BERTH_AVAILABLE}
 
-    return {
-        "ticket_type": ticket_type,
-        "berth": berth
-    }
+    return {"ticket_type": ticket_type, "berth": berth}
+
 
 def _get_current_ticket_counts():
     """Get current counts of different ticket types with locking."""
     return {
-        "confirmed": Ticket.objects.select_for_update(nowait=True)
-                    .filter(ticket_type=CONFIRMED, status=BOOKED).count(),
-        "rac": Ticket.objects.select_for_update(nowait=True)
-                    .filter(ticket_type=RAC, status=BOOKED).count(),
-        "waiting": Ticket.objects.select_for_update(nowait=True)
-                    .filter(ticket_type=WAITING_LIST, status=BOOKED).count()
+        "confirmed": Ticket.objects.select_for_update(nowait=True).filter(ticket_type=CONFIRMED, status=BOOKED).count(),
+        "rac": Ticket.objects.select_for_update(nowait=True).filter(ticket_type=RAC, status=BOOKED).count(),
+        "waiting": (
+            Ticket.objects.select_for_update(nowait=True).filter(ticket_type=WAITING_LIST, status=BOOKED).count()
+        ),
     }
+
 
 def _get_available_ticket_type(counts):
     """Determine available ticket type based on current counts."""
@@ -93,6 +89,7 @@ def _get_available_ticket_type(counts):
         return WAITING_LIST
     return None
 
+
 def _allocate_berth(ticket_type, age, gender, has_child):
     """Allocate appropriate berth based on ticket type and passenger details."""
     if ticket_type == CONFIRMED:
@@ -100,6 +97,7 @@ def _allocate_berth(ticket_type, age, gender, has_child):
     elif ticket_type == RAC:
         return _allocate_rac_berth_with_lock()
     return None
+
 
 def _create_ticket(passenger, ticket_details):
     """Create ticket and update berth status."""
@@ -121,9 +119,7 @@ def _allocate_confirmed_berth_with_lock(age, gender, has_child):
     """
     Allocate berth with proper locking
     """
-    available_berths = Berth.objects.select_for_update(nowait=True).filter(
-        availability_status=AVAILABLE
-    )
+    available_berths = Berth.objects.select_for_update(nowait=True).filter(availability_status=AVAILABLE)
 
     if age >= SENIOR_AGE or (gender == GENDER_FEMALE and has_child):
         lower_berth = available_berths.filter(berth_type=LOWER).first()
@@ -137,10 +133,11 @@ def _allocate_rac_berth_with_lock():
     """
     Allocate RAC berth with proper locking
     """
-    return Berth.objects.select_for_update(nowait=True).filter(
-        berth_type=SIDE_LOWER, 
-        availability_status=AVAILABLE
-    ).first()
+    return (
+        Berth.objects.select_for_update(nowait=True)
+        .filter(berth_type=SIDE_LOWER, availability_status=AVAILABLE)
+        .first()
+    )
 
 
 def cancel_ticket(ticket_id):
@@ -196,9 +193,9 @@ def get_available_berths():
 
 class BookingService:
     """Service class for handling passenger booking operations."""
-    
+
     REQUIRED_FIELDS = ["name", "age"]
-    
+
     @classmethod
     def process_booking_request(cls, passengers_data):
         """Process multiple passenger booking requests."""
@@ -227,23 +224,17 @@ class BookingService:
     def _process_single_booking(cls, passenger_data):
         """Process booking for a single passenger."""
         if not cls._validate_passenger_data(passenger_data):
-            return {
-                "error": "Missing required fields",
-                "passenger": passenger_data
-            }
+            return {"error": "Missing required fields", "passenger": passenger_data}
 
         ticket, error = book_ticket(
             passenger_name=passenger_data.get("name"),
             passenger_age=passenger_data.get("age"),
             gender=passenger_data.get("gender"),
             has_child=passenger_data.get("has_child", False),
-            parent_id=passenger_data.get("parent_id")
+            parent_id=passenger_data.get("parent_id"),
         )
 
-        return {"ticket": ticket} if ticket else {
-            "error": error,
-            "passenger": passenger_data
-        }
+        return {"ticket": ticket} if ticket else {"error": error, "passenger": passenger_data}
 
     @classmethod
     def _validate_passenger_data(cls, passenger_data):
@@ -253,10 +244,7 @@ class BookingService:
     @staticmethod
     def _create_error_response(message):
         """Create a standardized error response."""
-        return {
-            "error": message,
-            "status_code": status.HTTP_400_BAD_REQUEST
-        }
+        return {"error": message, "status_code": status.HTTP_400_BAD_REQUEST}
 
     @staticmethod
     def _create_booking_response(booking_results):
@@ -265,10 +253,8 @@ class BookingService:
             "booked_tickets": booking_results["booked_tickets"],
             "errors": booking_results["errors"],
             "status_code": (
-                status.HTTP_201_CREATED 
-                if booking_results["booked_tickets"] 
-                else status.HTTP_400_BAD_REQUEST
-            )
+                status.HTTP_201_CREATED if booking_results["booked_tickets"] else status.HTTP_400_BAD_REQUEST
+            ),
         }
 
     @staticmethod
@@ -276,10 +262,10 @@ class BookingService:
         """Format the booking response data for API."""
         if "error" in booking_result:
             return {"error": booking_result["error"]}, booking_result["status_code"]
-            
+
         return {
             "booked_tickets": TicketSerializer(booking_result["booked_tickets"], many=True).data,
-            "errors": booking_result["errors"]
+            "errors": booking_result["errors"],
         }, booking_result["status_code"]
 
 
@@ -295,5 +281,5 @@ class AvailabilityService:
                 "confirmed_limit": CONFIRMED_BERTH_LIMIT,
                 "rac_limit": RAC_TICKET_LIMIT,
                 "waiting_list_limit": WAITING_LIST_LIMIT,
-            }
+            },
         }

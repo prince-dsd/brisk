@@ -1,373 +1,235 @@
-### **System Overview**
+# Railway Ticket Reservation System
 
-This Railway Ticket Reservation System manages bookings, cancellations, and the availability of railway tickets. It includes seat allocation for confirmed berths, RAC (Reservation Against Cancellation), and waiting-list tickets, with specific rules for priority seating based on passenger attributes (e.g., elderly, ladies with children). The system will use Django for the backend, PostgreSQL as the database, and Django's ORM for database management.
+A Django-based railway ticket reservation system that handles berth allocation, RAC, and waiting list management.
 
-### **System Architecture**
+## System Overview
 
-```
-                +---------------------------+
-                |        Web Client         |
-                |  (Postman, Browser, etc.) |
-                +------------+--------------+
-                             |
-                             | REST API (Django REST Framework)
-                             |
-                +------------v--------------+
-                |     Django Backend        |
-                | (REST API with DRF)       |
-                +------------+--------------+
-                             |
-              +--------------+-----------------------+
-              |                                      |
-   +----------v-----------+              +-----------v-----------+
-   |   PostgreSQL Database|              |   Cache Layer (optional)|
-   |  (Tickets, Passengers,|              |  (For Fast Access to    |
-   |   Berths, Waiting List|              |    Availability Data)  |
-   +-----------------------+              +------------------------+
-```
+The system is designed to manage railway ticket reservations, including berth allocation, RAC (Reservation Against Cancellation), and waiting list management. It ensures that passengers are allocated berths based on priority rules and availability.
 
-### **Django Components**
-- **Django REST Framework (DRF)**: For building the API endpoints.
-- **PostgreSQL**: A relational database to store the details about passengers, tickets, berths, and the waiting list.
-- **Celery** (Optional): To handle tasks like sending email notifications, managing scheduled promotions, etc.
+## System Architecture
 
----
++---------------------------+
+|        Web Client         |
+|  (Postman, Browser, etc.) |
++------------+--------------+
+             |
+             | REST API (Django REST Framework)
+             |
++------------v--------------+
+|     Django Backend        |
+| (REST API with DRF)       |
++------------+--------------+
+             |
++------------v--------------+
+|   PostgreSQL Database     |
+| (Tickets, Passengers,     |
+|  Berths, Waiting List)    |
++---------------------------+
 
-### **Database Schema**
+## Database Models
 
-Here’s a description of the tables we will use for this system:
+### Passenger
 
-#### **Table: Passengers**
+| Field     | Type    | Description                          |
+|-----------|---------|--------------------------------------|
+| name      | CharField | Full name of the passenger          |
+| age       | IntegerField | Age of the passenger              |
+| is_child  | BooleanField | Indicates if passenger is under 5 years old |
+| gender    | CharField | Gender of the passenger             |
 
-| Column        | Data Type    | Description                                  |
-|---------------|--------------|----------------------------------------------|
-| `id`          | INT          | Primary Key, Unique ID for each passenger    |
-| `name`        | VARCHAR(255)  | Passenger’s full name                        |
-| `age`         | INT          | Passenger's age                              |
-| `is_child`    | BOOLEAN      | Whether the passenger is a child (age < 5)   |
-| `ticket_id`   | INT          | Foreign Key, references `Ticket` table       |
+### Ticket
 
-#### **Table: Tickets**
+| Field           | Type         | Description                              |
+|-----------------|--------------|------------------------------------------|
+| ticket_type     | CharField    | Type of ticket (Confirmed/RAC/Waiting List) |
+| status          | CharField    | Current status of the ticket             |
+| passenger       | ForeignKey   | Passenger this ticket belongs to         |
+| berth_allocation| CharField    | Berth allocated to this ticket           |
+| created_at      | DateTimeField| Timestamp when ticket was created        |
 
-| Column         | Data Type   | Description                                        |
-|----------------|-------------|----------------------------------------------------|
-| `id`           | INT         | Primary Key, Unique ID for each ticket            |
-| `status`       | ENUM        | Ticket status (`confirmed`, `RAC`, `waiting-list`) |
-| `berth_type`   | ENUM        | Berth type (`upper`, `lower`, `side-lower`)       |
-| `priority`     | ENUM        | Priority group (`normal`, `senior`, `lady-child`) |
-| `passenger_count` | INT       | Number of passengers in the ticket               |
-| `seat_number`  | INT         | Seat number assigned to the ticket                |
+### Berth
 
-#### **Table: BerthAllocations**
+| Field              | Type       | Description                              |
+|--------------------|------------|------------------------------------------|
+| berth_type         | CharField  | Type of berth (Lower/Upper/Side)         |
+| availability_status| CharField  | Current availability status of the berth |
 
-| Column        | Data Type    | Description                                     |
-|---------------|--------------|-------------------------------------------------|
-| `ticket_id`   | INT          | Foreign Key, references `Tickets` table        |
-| `berth_type`  | ENUM         | Berth type allocated (`upper`, `lower`, etc.)  |
-| `is_occupied` | BOOLEAN      | Flag indicating whether the berth is occupied  |
+### Ticket History
 
-#### **Table: WaitingList**
+| Field     | Type         | Description                              |
+|-----------|--------------|------------------------------------------|
+| ticket    | ForeignKey   | Ticket whose history is being tracked    |
+| action    | CharField    | Action performed on the ticket           |
+| timestamp | DateTimeField| When the action was performed            |
 
-| Column         | Data Type  | Description                                      |
-|----------------|------------|--------------------------------------------------|
-| `ticket_id`    | INT        | Foreign Key, references `Tickets` table         |
-| `position_in_queue` | INT    | Position in the waiting list                    |
-| `is_promoted`  | BOOLEAN    | Flag indicating whether the ticket has been promoted from the waiting list to RAC |
+## Running the Application
 
----
+To run the Railway Ticket Reservation System application, follow these steps:
 
-### **Concurrency Handling**
+### Prerequisites
 
-- **Database Locking**: Django ORM supports transactions, so you can use `select_for_update` to lock rows when booking tickets to avoid double booking.
+Ensure you have the following installed:
+- Docker
+- Docker Compose
 
-  Example:
-  ```python
-  from django.db import transaction
-  with transaction.atomic():
-      ticket = Ticket.objects.select_for_update().get(id=ticket_id)
+### Steps
+
+1. **Clone the Repository:**
+  ```sh
+  git clone <repository-url>
+  cd <repository-directory>
   ```
 
----
+2. **Create a `.env` File:**
+  Create a `.env` file in the root directory and add the following environment variables:
+  ```env
+  SECRET_KEY=<your-secret-key>
+  DATABASE_URL=postgres://user:password@db:5432/railway_ticket_db
+  ```
 
-### **1. Overview**
+3. **Build and Run the Docker Containers:**
+  ```sh
+  docker-compose up --build
+  ```
 
-The Railway Ticket Reservation System is a platform designed to handle ticket reservations, cancellations, and viewing available/booked tickets. The system adheres to specific rules regarding seat allocation and prioritization, including handling the **Confirmed Berths**, **RAC (Reservation Against Cancellation)**, and **Waiting List**.
+4. **Apply Migrations:**
+  Open a new terminal and run the following command to apply database migrations:
+  ```sh
+  docker-compose exec app python manage.py migrate
+  ```
 
----
+5. **Create a Superuser:**
+  Create a superuser to access the Django admin interface:
+  ```sh
+  docker-compose exec app python manage.py createsuperuser
+  ```
 
-### **2. Architecture Diagram**
+6. **Access the Application:**
+  - The application will be available at `http://localhost:8000`
+  - The Django admin interface will be available at `http://localhost:8000/admin`
 
-#### **2.1 High-Level Architecture**
+### API Documentation
 
-```plaintext
-+------------------------------------+
-|           User/Client (Browser)    |
-+------------------------------------+
-                |
-                v
-+------------------------------------+
-|           API Gateway (Django)     |
-|      Handles Requests/Responses    |
-+------------------------------------+
-                |
-                v
-+------------------------------------+     +-----------------------------------+
-|         Django REST Framework      |<--->|     PostgreSQL Database          |
-|  (API Views, Serializers, Models)  |     |  (Stores Tickets, Passengers,    |
-|                                    |     |    Berth Allocations, etc.)      |
-+------------------------------------+     +-----------------------------------+
+The API documentation is available at:
+- Swagger UI: `http://localhost:8000/swagger/`
+- Redoc UI: `http://localhost:8000/redoc/`
+
+### Running Tests
+
+To run tests, use the following command:
+```sh
+docker-compose exec app python manage.py test
 ```
 
-- **User/Client**: The users access the system via HTTP requests (POST for booking, GET for viewing tickets, etc.). This could be via a frontend app or Postman for testing.
-- **API Gateway**: The Django application is the API gateway that handles incoming requests. It processes the business logic related to ticket reservations and communicates with the database.
-- **Django REST Framework**: The API is implemented using Django and Django REST Framework (DRF). It allows us to build RESTful APIs for interacting with the ticket reservations.
-- **PostgreSQL Database**: The database holds all the data, including **Passengers**, **Tickets**, and **Berth Allocations**. It is queried by the Django app to retrieve and store data.
+## Sample Request and Response
 
----
+### Book Ticket
 
-### **3. Database Schema Diagram**
-
-Here’s the structure of the key database models and how they relate to each other:
-
-```plaintext
-+-------------------+          +-------------------+
-|   Passenger       |          |   Ticket          |
-+-------------------+          +-------------------+
-| id (PK)           | <-------> | id (PK)           |
-| name              |          | passenger_id (FK) |
-| age               |          | status            |
-| is_child          |          | berth_type        |
-| is_priority       |          | created_at        |
-+-------------------+          +-------------------+
-```
-
-#### **Explanation**:
-- **Passenger**: Represents a passenger. Contains details like `name`, `age`, `is_child` (whether the passenger is a child under 5 years old), and `is_priority` (for elderly passengers or women with children).
-
-- **Ticket**: Represents the ticket issued to a passenger. It stores the `status` of the ticket (Booked, RAC, Waiting), `berth_type` (Side-lower, Lower Berth, etc.), and a reference to the `passenger`.
-
----
-
-### **4. Flowchart for Booking and Cancellation**
-
-#### **4.1 Booking Process**
-
-```plaintext
-+-------------------+
-|  Start Booking    |
-+-------------------+
-        |
-        v
-+-------------------+
-|  Validate Input   |
-|  (Passenger Data) |
-+-------------------+
-        |
-        v
-+-------------------+
-|  Check Seat Availability |
-+-------------------+
-        |
-        v
-+-------------------+    No    +-------------------+
-|   Available?      | --------> | Show "No Tickets  |
-+-------------------+          |    Available"     |
-        |                       +-------------------+
-   Yes v
-+-------------------+
-|  Allocate Berth   |
-+-------------------+
-        |
-        v
-+-------------------+
-|  Save Ticket to DB |
-+-------------------+
-        |
-        v
-+-------------------+
-|   End Booking     |
-+-------------------+
-```
-
-#### **4.2 Cancellation Process**
-
-```plaintext
-+-------------------+
-|  Start Cancellation|
-+-------------------+
-        |
-        v
-+-------------------+
-|  Validate Ticket  |
-|  (Ticket ID)      |
-+-------------------+
-        |
-        v
-+-------------------+
-|  Ticket Found?    |
-+-------------------+
-        |
-        v
-  Yes  +-------------------+
-        |  Change Ticket    |
-        |  Status to CANCEL |
-        +-------------------+
-        |
-        v
-+-------------------+
-|  Promote RAC to   |
-|  Confirmed Berth  |
-+-------------------+
-        |
-        v
-+-------------------+
-|  End Cancellation |
-+-------------------+
-```
-
----
-
-### **5. API Endpoints & Sample Requests**
-
-Below are the **API endpoints**, their **HTTP methods**, and sample requests for booking, canceling, and viewing tickets.
-
----
-
-#### **5.1 `POST /api/v1/tickets/book` - Book a Ticket**
-
-**Description**: This endpoint is used to book a new ticket. It accepts passenger data and berth preference.
+**Endpoint:** `POST /tickets/book/`
 
 **Request:**
-```http
-POST /api/v1/tickets/book HTTP/1.1
-Host: localhost:8000
-Content-Type: application/json
-
-{
-  "passenger": {
-    "name": "John Doe",
-    "age": 65,
-    "is_child": false,
-    "is_priority": true
-  },
-  "berth_type": "LOWER"
-}
-```
-
-**Response:**
 ```json
 {
-  "id": 1,
-  "passenger": {
-    "id": 1,
-    "name": "John Doe",
-    "age": 65,
-    "is_child": false,
-    "is_priority": true
-  },
-  "status": "BOOKED",
-  "berth_type": "LOWER",
-  "created_at": "2025-03-06T10:00:00Z"
-}
-```
-
----
-
-#### **5.2 `POST /api/v1/tickets/cancel/{ticketId}` - Cancel a Ticket**
-
-**Description**: This endpoint is used to cancel an existing ticket. If a ticket is canceled, it checks if any RAC or Waiting List passengers need to be upgraded.
-
-**Request:**
-```http
-POST /api/v1/tickets/cancel/1 HTTP/1.1
-Host: localhost:8000
-```
-
-**Response:**
-```json
-{
-  "message": "Ticket canceled successfully"
-}
-```
-
----
-
-#### **5.3 `GET /api/v1/tickets/booked` - Get All Booked Tickets**
-
-**Description**: This endpoint returns a list of all tickets that are confirmed.
-
-**Request:**
-```http
-GET /api/v1/tickets/booked HTTP/1.1
-Host: localhost:8000
-```
-
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "passenger": {
-      "id": 1,
+  "passengers": [
+    {
       "name": "John Doe",
-      "age": 65,
-      "is_child": false,
-      "is_priority": true
-    },
-    "status": "BOOKED",
-    "berth_type": "LOWER",
-    "created_at": "2025-03-06T10:00:00Z"
-  }
-]
-```
-
----
-
-#### **5.4 `GET /api/v1/tickets/available` - Get All Available Tickets**
-
-**Description**: This endpoint returns a list of all waiting list tickets (those that haven’t been booked yet).
-
-**Request:**
-```http
-GET /api/v1/tickets/available HTTP/1.1
-Host: localhost:8000
-```
-
-**Response:**
-```json
-[
-  {
-    "id": 2,
-    "passenger": {
-      "id": 2,
-      "name": "Jane Doe",
       "age": 30,
       "is_child": false,
-      "is_priority": false
+      "gender": "Male"
     },
-    "status": "WAITING",
-    "berth_type": "SIDE-LOWER",
-    "created_at": "2025-03-06T10:05:00Z"
+    {
+      "name": "Jane Doe",
+      "age": 28,
+      "is_child": false,
+      "gender": "Female"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "booking_id": "12345",
+  "status": "Confirmed",
+  "tickets": [
+    {
+      "ticket_id": "1",
+      "passenger": "John Doe",
+      "berth_allocation": "Lower"
+    },
+    {
+      "ticket_id": "2",
+      "passenger": "Jane Doe",
+      "berth_allocation": "Upper"
+    }
+  ]
+}
+```
+
+### Cancel Ticket
+
+**Endpoint:** `POST /tickets/cancel/{ticket_id}/`
+
+**Request:**
+```json
+{}
+```
+
+**Response:**
+```json
+{
+  "message": "Ticket canceled successfully."
+}
+```
+
+### Get Booked Tickets
+
+**Endpoint:** `GET /tickets/booked/`
+
+**Request:**
+```json
+{}
+```
+
+**Response:**
+```json
+[
+  {
+    "ticket_id": "1",
+    "passenger": "John Doe",
+    "status": "Confirmed",
+    "berth_allocation": "Lower"
+  },
+  {
+    "ticket_id": "2",
+    "passenger": "Jane Doe",
+    "status": "Confirmed",
+    "berth_allocation": "Upper"
   }
 ]
 ```
 
----
+### Get Available Tickets
 
-### **6. Advanced Concepts:**
+**Endpoint:** `GET /tickets/available/`
 
-#### **6.1 Handling Concurrency**
+**Request:**
+```json
+{}
+```
 
-- **Optimistic Locking**: Implement optimistic concurrency control using Django's `select_for_update()` to prevent two users from booking the same seat simultaneously.
-- **Atomic Transactions**: Ensure that the seat allocation process (booking or cancellation) is wrapped in an atomic transaction using Django's `@transaction.atomic` decorator. This ensures that if anything goes wrong (e.g., a seat is double-booked), all changes are rolled back.
-
-#### **6.2 Error Handling**
-
-- If the user tries to book a ticket when the capacity (confirmed berths + RAC) is full, the API should return an error message: `"No tickets available"`.
-- If a ticket ID for cancellation doesn't exist, a 404 response should be returned with the message: `"Ticket not found"`.
-
----
-
-### **7. Conclusion**
-
-This documentation provides a thorough breakdown of the system’s architecture, flowcharts, and API endpoints for the Railway Ticket Reservation System. It outlines the main components and their interactions, such as the API Gateway, the database schema, and sample requests for each endpoint. The design ensures a flexible, efficient, and maintainable system.
+**Response:**
+```json
+{
+  "available_berths": {
+    "Lower": 10,
+    "Upper": 5,
+    "Side": 3
+  },
+  "quota_info": {
+    "General": 15,
+    "Ladies": 3
+  }
+}
+```
